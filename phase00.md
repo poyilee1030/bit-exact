@@ -121,6 +121,7 @@ docs/baseline.md             # 從這一步開始 append-only
 - `scripts/regress.sh`：建置、`ctest`，之後的 Step 往裡面加項目
 - `.github/workflows/ci.yml`：`ubuntu-24.04`，跑 `check_host_env.sh` 與 `regress.sh`
 - `README.md`、`.clang-format`
+- `.gitattributes`：`* text=auto eol=lf`，二進位的向量與模型檔標成 `binary`
 
 <!-- STEP_DETAIL_START -->
 ### 這一步到底要做什麼
@@ -142,6 +143,7 @@ docs/       baseline、planning-review、setup、npu-spec、教學章
 
 - Debug 建置開 AddressSanitizer 與 UndefinedBehaviorSanitizer：模擬器大量用移位與有號／無號轉換，**C++ 的未定義行為會讓模型「在這台電腦上剛好對」**。之後每個 Step 的單元測試都在 sanitizer 下跑
 - `-Werror` 讓 CI 對警告失敗；兩個編譯器（GCC、clang）都建一次
+- **換行一律 LF**：在 Windows 上 clone 時，git 預設會把 LF 換成 CRLF（第一個 commit 就出現這個警告）。shell 腳本帶著 `\r` 到 Linux 上會壞掉（`set -euo pipefail\r` 之類的錯誤）。`.gitattributes` 讓每台機器 checkout 出來都是 LF；加上之後要用 `git add --renormalize .` 把已經入庫的檔案統一一次
 
 先寫測試：
 
@@ -151,6 +153,9 @@ test/test_smoke.cpp:
 tests/test_regress.sh:
   - 建置失敗時 regress.sh 結束碼 1，不是 0
   - 有一個單元測試失敗時結束碼 1
+tests/test_line_endings.sh:
+  - repo 裡的文字檔都沒有 CR（git ls-files 加 grep），有就結束碼 1 並列出檔名
+  - 先紅：故意加一個 CRLF 的檔案
 ```
 
 ### 預期檔案
@@ -159,9 +164,9 @@ tests/test_regress.sh:
 CMakeLists.txt
 src/main.cpp
 test/CMakeLists.txt  test/test_smoke.cpp
-scripts/regress.sh   tests/test_regress.sh
+scripts/regress.sh   tests/test_regress.sh  tests/test_line_endings.sh
 .github/workflows/ci.yml
-README.md  .clang-format  .gitignore
+README.md  .clang-format  .gitignore  .gitattributes
 ```
 
 ### 驗證
